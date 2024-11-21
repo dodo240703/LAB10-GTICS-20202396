@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>El Juego del Laberinto</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(10, 40px);
+      gap: 2px;
+      justify-content: center;
+    }
+    .cell {
+      width: 40px;
+      height: 40px;
+      border: 1px solid #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #ddd; /* Default hidden state */
+    }
+    .robot { background-color: #ffff00; position: relative; }
+    .robot img {
+      width: 100%;
+      height: 100%;
+    }
+    .goal { background-color: #008000; }
+    .free { background-color: #add8e6; }
+    .hole { background-color: #000; }
+    .monster { background-color: #fff; }
+    .monster img {
+      width: 100%;
+      height: 100%;
+    }
+    .hidden { background-color: #ddd; }
+  </style>
+</head>
+<body class="bg-light">
+  <div class="container text-center mt-5">
+    <h1 class="mb-4">El Juego del Laberinto</h1>
+    
+    <!-- Cuadro de texto para ingresar el mapa -->
+    <textarea id="mapInput" class="form-control mb-3" rows="10" placeholder="Introduce el mapa del laberinto"></textarea>
+    <button id="generateBoardButton" class="btn btn-success btn-lg">Generar Tablero</button>
+
+    <!-- Tablero dinámico -->
+    <div id="boardContainer" class="mt-4 d-none">
+      <div id="board" class="grid"></div>
+      <button id="toggleObstaclesButton" class="btn btn-primary mt-3">Mostrar obstáculos</button>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const mapInput = document.getElementById('mapInput');
+    const generateButton = document.getElementById('generateBoardButton');
+    const boardElement = document.getElementById('board');
+    const boardContainer = document.getElementById('boardContainer');
+    const toggleButton = document.getElementById('toggleObstaclesButton');
+
+    const cellClasses = {
+      'I': 'robot', // Casilla inicial
+      'F': 'goal',  // Casilla final
+      'O': 'free',  // Camino libre
+      'A': 'hole',  // Agujero negro
+      'S': 'monster', // Suplantación
+      'C': 'monster', // Copia
+      'P': 'monster'  // Plagio
+    };
+
+    let showObstacles = false; // Estado inicial de los obstáculos
+    let mapData = []; // Mapa cargado
+    let robotPosition = { row: 0, col: 0 }; // Posición inicial del robot
+
+    const renderBoard = (showObstacles) => {
+      boardElement.innerHTML = '';
+      mapData.forEach((row, rowIndex) => {
+        row.split(' ').forEach((cell, colIndex) => {
+          const cellElement = document.createElement('div');
+          cellElement.classList.add('cell');
+          if (cell === 'I') {
+            cellElement.classList.add(cellClasses[cell]);
+            const img = document.createElement('img');
+            img.src = 'robot.png'; // Ruta de la imagen del robot
+            img.alt = 'Robot';
+            cellElement.appendChild(img);
+            robotPosition = { row: rowIndex, col: colIndex }; // Guardar posición inicial del robot
+          } else if (cell === 'F' || showObstacles) {
+            cellElement.classList.add(cellClasses[cell] || 'hidden');
+            if (cell === 'S' || cell === 'C' || cell === 'P') {
+              const img = document.createElement('img');
+              img.src = cell === 'S' ? 'suplantacion.png' : cell === 'C' ? 'copia.png' : 'plagio.png';
+              img.alt = 'Monstruo';
+              cellElement.appendChild(img);
+            }
+          } else {
+            cellElement.classList.add('hidden');
+          }
+          boardElement.appendChild(cellElement);
+        });
+      });
+    };
+
+    const moveRobot = (newRow, newCol) => {
+        const rows = mapData.length;
+        const cols = mapData[0].split(' ').length;
+      
+        // Verifica si el movimiento está dentro de los límites del tablero
+        if (newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols) {
+          const currentRow = mapData[robotPosition.row].split(' ');
+          const nextRow = mapData[newRow].split(' ');
+      
+          // Si la celda actual no es la meta o el inicio, asegúrate de que sea "camino libre"
+          if (currentRow[robotPosition.col] === 'I') {
+            currentRow[robotPosition.col] = 'O'; // Casilla actual se convierte en libre
+          }
+      
+          // La nueva celda se convierte en la casilla del robot
+          nextRow[newCol] = 'I';
+      
+          // Actualiza el mapa
+          mapData[robotPosition.row] = currentRow.join(' ');
+          mapData[newRow] = nextRow.join(' ');
+      
+          // Actualiza la posición del robot
+          robotPosition = { row: newRow, col: newCol };
+      
+          // Renderiza nuevamente el tablero
+          renderBoard(showObstacles);
+        }
+      };
+
+    document.addEventListener('keydown', (event) => {
+      const { row, col } = robotPosition;
+
+      // Movimiento según la tecla presionada
+      if (event.key === 'ArrowUp') {
+        moveRobot(row - 1, col);
+      } else if (event.key === 'ArrowDown') {
+        moveRobot(row + 1, col);
+      } else if (event.key === 'ArrowLeft') {
+        moveRobot(row, col - 1);
+      } else if (event.key === 'ArrowRight') {
+        moveRobot(row, col + 1);
+      }
+    });
+
+    generateButton.addEventListener('click', () => {
+      const mapText = mapInput.value.trim();
+      if (mapText) {
+        mapData = mapText.split('\n'); // Dividir por líneas
+        renderBoard(false); // Render inicial sin mostrar obstáculos
+        boardContainer.classList.remove('d-none'); // Mostrar el tablero y botón
+      } else {
+        alert('Por favor, introduce un mapa válido.');
+      }
+    });
+
+    toggleButton.addEventListener('click', () => {
+      showObstacles = !showObstacles;
+      renderBoard(showObstacles);
+      toggleButton.textContent = showObstacles ? 'Ocultar obstáculos' : 'Mostrar obstáculos';
+    });
+  </script>
+</body>
+</html>
